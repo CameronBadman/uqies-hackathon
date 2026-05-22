@@ -1,12 +1,28 @@
 import * as THREE from "three"
 
 const STATUS_COLORS = {
-  idle: 0x6f7d78,
+  idle: 0x74827d,
   running: 0x79d6b5,
   waiting_for_approval: 0xf2c45b,
   completed: 0x8bd45d,
   failed: 0xe86b6b,
-  rejected: 0xa775d6
+  rejected: 0xa775d6,
+  unavailable: 0x87909c
+}
+
+const NODE_LAYOUT = {
+  root: [0, 0, 3],
+  browser: [-24, 12, -2],
+  research: [-8, 18, 2],
+  analyst: [12, 13, -3],
+  calendar: [28, 4, 2],
+  scheduler: [20, -14, -1],
+  synthesizer: [-8, -18, 3],
+  "browser.playwright": [-35, 0, 0],
+  "search.serper": [-13, 31, -1],
+  "calendar.google": [38, -8, 2],
+  "scheduler.local": [31, -25, -2],
+  "llm.openai": [-22, -31, 1]
 }
 
 export class HermesGraph {
@@ -14,23 +30,29 @@ export class HermesGraph {
     this.container = container
     this.nodes = new Map()
     this.edges = []
+    this.particles = []
     this.scene = new THREE.Scene()
-    this.scene.background = new THREE.Color(0x0c0f10)
+    this.scene.background = new THREE.Color(0x090c0d)
 
-    this.camera = new THREE.PerspectiveCamera(55, 1, 0.1, 1000)
-    this.camera.position.set(0, 0, 70)
+    this.camera = new THREE.PerspectiveCamera(50, 1, 0.1, 1000)
+    this.camera.position.set(0, 0, 78)
 
     this.renderer = new THREE.WebGLRenderer({antialias: true})
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
     this.container.appendChild(this.renderer.domElement)
 
-    const ambient = new THREE.AmbientLight(0xffffff, 0.7)
-    const point = new THREE.PointLight(0x79d6b5, 3, 120)
-    point.position.set(20, 20, 45)
-    this.scene.add(ambient, point)
-
-    this.edgeMaterial = new THREE.LineBasicMaterial({color: 0x2f6254, transparent: true, opacity: 0.7})
     this.clock = new THREE.Clock()
+    this.edgeMaterial = new THREE.LineBasicMaterial({color: 0x396e61, transparent: true, opacity: 0.55})
+    this.grid = this.createGrid()
+    this.scene.add(this.grid)
+    this.scene.add(this.createStarField())
+
+    const ambient = new THREE.AmbientLight(0xffffff, 0.55)
+    const key = new THREE.PointLight(0x79d6b5, 5, 140)
+    const warm = new THREE.PointLight(0xf2c45b, 2, 120)
+    key.position.set(-25, 26, 38)
+    warm.position.set(34, -18, 32)
+    this.scene.add(ambient, key, warm)
 
     window.addEventListener("resize", () => this.resize())
     this.resize()
@@ -38,20 +60,24 @@ export class HermesGraph {
   }
 
   reset() {
-    for (const node of this.nodes.values()) this.scene.remove(node.mesh)
-    for (const edge of this.edges) this.scene.remove(edge)
+    for (const node of this.nodes.values()) {
+      this.scene.remove(node.group)
+    }
+    for (const edge of this.edges) this.scene.remove(edge.line)
+    for (const particle of this.particles) this.scene.remove(particle.mesh)
     this.nodes.clear()
     this.edges = []
+    this.particles = []
   }
 
   applyEvent(event) {
     switch (event.type) {
       case "job_started":
-        this.addNode("root", "User task", "running", 0)
+        this.addNode("root", "User task", "running", 1.25)
         break
       case "agent_spawned":
-        this.addNode(event.agent_id, event.label || event.agent_id, event.status || "idle")
-        this.addEdge(event.parent_id || "root", event.agent_id)
+        this.addNode(event.agent_id, event.label || event.agent_id, event.status || "idle", 1)
+        this.addEdge(event.parent_id || "root", event.agent_id, true)
         break
       case "agent_status_changed":
         this.updateNode(event.agent_id, event.status)
@@ -59,20 +85,21 @@ export class HermesGraph {
       case "tool_started":
       case "tool_observation":
       case "tool_completed":
-        this.addNode(event.tool_id, event.tool_id, event.status || "running", 0.75)
-        if (event.agent_id) this.addEdge(event.agent_id, event.tool_id)
+        this.addNode(event.tool_id, event.tool_id, event.status || "running", 0.72)
+        if (event.agent_id) this.addEdge(event.agent_id, event.tool_id, true)
         if (event.status) this.updateNode(event.tool_id, event.status)
         break
       case "approval_required":
-        this.addNode(event.approval_id, "approval", "waiting_for_approval", 0.65)
-        this.addEdge(event.agent_id, event.approval_id)
+        this.addNode(event.approval_id, "approval", "waiting_for_approval", 0.62)
+        this.addEdge(event.agent_id, event.approval_id, true)
         this.updateNode(event.agent_id, "waiting_for_approval")
         break
       case "message_sent":
-        this.addEdge(event.from_agent_id, event.to_agent_id)
+        this.addEdge(event.from_agent_id, event.to_agent_id, true)
         break
       case "job_completed":
         this.updateNode("synthesizer", "completed")
+        this.updateNode("root", "completed")
         break
       case "job_failed":
         this.updateNode(event.agent_id || "root", "failed")
@@ -82,21 +109,35 @@ export class HermesGraph {
 
   addNode(id, label, status = "idle", scale = 1) {
     if (!id || this.nodes.has(id)) return
-    const index = this.nodes.size
-    const angle = index === 0 ? 0 : (index / 10) * Math.PI * 2
-    const radius = index === 0 ? 0 : 16 + (index % 3) * 7
-    const geometry = new THREE.SphereGeometry(1.8 * scale, 32, 16)
-    const material = new THREE.MeshStandardMaterial({
-      color: STATUS_COLORS[status] || STATUS_COLORS.idle,
-      emissive: STATUS_COLORS[status] || STATUS_COLORS.idle,
-      emissiveIntensity: 0.28,
-      roughness: 0.38,
-      metalness: 0.15
-    })
-    const mesh = new THREE.Mesh(geometry, material)
-    mesh.position.set(Math.cos(angle) * radius, Math.sin(angle) * radius, (index % 4) * 4 - 6)
-    this.scene.add(mesh)
-    this.nodes.set(id, {id, label, status, mesh, baseY: mesh.position.y})
+
+    const group = new THREE.Group()
+    const position = this.positionFor(id)
+    group.position.set(position[0], position[1], position[2])
+
+    const color = STATUS_COLORS[status] || STATUS_COLORS.idle
+    const core = new THREE.Mesh(
+      new THREE.IcosahedronGeometry(2.3 * scale, 3),
+      new THREE.MeshStandardMaterial({
+        color,
+        emissive: color,
+        emissiveIntensity: 0.38,
+        roughness: 0.28,
+        metalness: 0.22
+      })
+    )
+
+    const halo = new THREE.Mesh(
+      new THREE.TorusGeometry(3.25 * scale, 0.045, 12, 96),
+      new THREE.MeshBasicMaterial({color, transparent: true, opacity: 0.75})
+    )
+    halo.rotation.x = Math.PI / 2
+
+    const labelSprite = this.createLabel(label)
+    labelSprite.position.set(0, -4.2 * scale, 0)
+
+    group.add(core, halo, labelSprite)
+    this.scene.add(group)
+    this.nodes.set(id, {id, label, status, group, core, halo, labelSprite, baseY: position[1], scale})
   }
 
   updateNode(id, status) {
@@ -104,22 +145,31 @@ export class HermesGraph {
     if (!node) return
     node.status = status
     const color = STATUS_COLORS[status] || STATUS_COLORS.idle
-    node.mesh.material.color.setHex(color)
-    node.mesh.material.emissive.setHex(color)
+    node.core.material.color.setHex(color)
+    node.core.material.emissive.setHex(color)
+    node.halo.material.color.setHex(color)
+    node.halo.material.opacity = status === "running" ? 0.95 : 0.7
   }
 
-  addEdge(from, to) {
+  addEdge(from, to, pulse = false) {
     const source = this.nodes.get(from)
     const target = this.nodes.get(to)
     if (!source || !target) return
 
-    const geometry = new THREE.BufferGeometry().setFromPoints([
-      source.mesh.position.clone(),
-      target.mesh.position.clone()
-    ])
-    const line = new THREE.Line(geometry, this.edgeMaterial.clone())
+    const key = `${from}->${to}`
+    if (this.edges.some(edge => edge.key === key)) {
+      if (pulse) this.addParticle(source, target)
+      return
+    }
+
+    const curve = this.curveBetween(source.group.position, target.group.position)
+    const line = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints(curve.getPoints(28)),
+      this.edgeMaterial.clone()
+    )
     this.scene.add(line)
-    this.edges.push(line)
+    this.edges.push({key, from, to, source, target, line})
+    if (pulse) this.addParticle(source, target)
   }
 
   resize() {
@@ -136,12 +186,108 @@ export class HermesGraph {
     const t = this.clock.getElapsedTime()
 
     for (const [index, node] of Array.from(this.nodes.values()).entries()) {
-      node.mesh.rotation.x += 0.006
-      node.mesh.rotation.y += 0.01
-      node.mesh.position.y = node.baseY + Math.sin(t * 1.4 + index) * 0.45
+      node.core.rotation.x += 0.008
+      node.core.rotation.y += 0.012
+      node.halo.rotation.z -= 0.01 + index * 0.0007
+      node.group.position.y = node.baseY + Math.sin(t * 1.2 + index) * 0.38
+      const pulse = node.status === "running" || node.status === "waiting_for_approval"
+      node.halo.scale.setScalar(pulse ? 1 + Math.sin(t * 4 + index) * 0.08 : 1)
     }
 
-    this.scene.rotation.y = Math.sin(t * 0.25) * 0.12
+    for (const edge of this.edges) {
+      const curve = this.curveBetween(edge.source.group.position, edge.target.group.position)
+      edge.line.geometry.setFromPoints(curve.getPoints(28))
+    }
+
+    this.animateParticles(0.012)
+    this.grid.rotation.z = Math.sin(t * 0.12) * 0.02
+    this.scene.rotation.y = Math.sin(t * 0.18) * 0.08
     this.renderer.render(this.scene, this.camera)
+  }
+
+  animateParticles(speed) {
+    for (const particle of [...this.particles]) {
+      particle.progress += speed
+      if (particle.progress >= 1) {
+        this.scene.remove(particle.mesh)
+        this.particles = this.particles.filter(item => item !== particle)
+        continue
+      }
+      const curve = this.curveBetween(particle.source.group.position, particle.target.group.position)
+      particle.mesh.position.copy(curve.getPoint(particle.progress))
+      particle.mesh.material.opacity = 1 - Math.max(0, particle.progress - 0.72) / 0.28
+    }
+  }
+
+  addParticle(source, target) {
+    const mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(0.45, 16, 8),
+      new THREE.MeshBasicMaterial({color: 0xe8fff5, transparent: true, opacity: 0.95})
+    )
+    this.scene.add(mesh)
+    this.particles.push({source, target, mesh, progress: 0})
+  }
+
+  curveBetween(source, target) {
+    const mid = source.clone().add(target).multiplyScalar(0.5)
+    mid.z += 10 + source.distanceTo(target) * 0.08
+    return new THREE.QuadraticBezierCurve3(source.clone(), mid, target.clone())
+  }
+
+  positionFor(id) {
+    if (NODE_LAYOUT[id]) return NODE_LAYOUT[id]
+    const index = this.nodes.size
+    const angle = index * 1.91
+    const radius = 18 + (index % 5) * 5
+    return [Math.cos(angle) * radius, Math.sin(angle) * radius, (index % 5) * 3 - 6]
+  }
+
+  createGrid() {
+    const group = new THREE.Group()
+    const material = new THREE.LineBasicMaterial({color: 0x18322d, transparent: true, opacity: 0.32})
+    for (let i = -60; i <= 60; i += 10) {
+      const horizontal = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(-70, i, -18),
+        new THREE.Vector3(70, i, -18)
+      ])
+      const vertical = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(i, -44, -18),
+        new THREE.Vector3(i, 44, -18)
+      ])
+      group.add(new THREE.Line(horizontal, material), new THREE.Line(vertical, material))
+    }
+    return group
+  }
+
+  createStarField() {
+    const geometry = new THREE.BufferGeometry()
+    const positions = []
+    for (let i = 0; i < 550; i++) {
+      positions.push((Math.random() - 0.5) * 150, (Math.random() - 0.5) * 95, -35 - Math.random() * 80)
+    }
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3))
+    return new THREE.Points(
+      geometry,
+      new THREE.PointsMaterial({color: 0x79d6b5, size: 0.14, transparent: true, opacity: 0.45})
+    )
+  }
+
+  createLabel(text) {
+    const canvas = document.createElement("canvas")
+    canvas.width = 512
+    canvas.height = 128
+    const ctx = canvas.getContext("2d")
+    ctx.fillStyle = "rgba(9, 12, 13, 0.72)"
+    ctx.roundRect(24, 30, 464, 62, 14)
+    ctx.fill()
+    ctx.font = "600 30px system-ui, -apple-system, Segoe UI, sans-serif"
+    ctx.fillStyle = "#edf3ef"
+    ctx.textAlign = "center"
+    ctx.textBaseline = "middle"
+    ctx.fillText(text, 256, 61, 430)
+    const texture = new THREE.CanvasTexture(canvas)
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({map: texture, transparent: true}))
+    sprite.scale.set(13, 3.25, 1)
+    return sprite
   }
 }

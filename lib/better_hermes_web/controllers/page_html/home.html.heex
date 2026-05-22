@@ -1,129 +1,124 @@
-<div id="hermes-app" class="min-h-screen bg-[#101314] text-[#edf3ef]">
-  <header class="border-b border-white/10 bg-[#15191a]/95">
-    <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-4">
-      <div>
+<div id="hermes-app" class="h-screen overflow-hidden bg-[#090c0d] text-[#edf3ef]">
+  <header class="absolute inset-x-0 top-0 z-20 border-b border-white/10 bg-[#0d1112]/95 shadow-2xl shadow-black/30 backdrop-blur">
+    <div class="flex min-h-16 flex-wrap items-center gap-3 px-4 py-3 lg:flex-nowrap">
+      <div class="min-w-48">
         <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#79d6b5]">
           Better Hermes
         </p>
-        <h1 class="text-xl font-semibold leading-7 text-white sm:text-2xl">
-          Personal assistant agent runtime
-        </h1>
+        <div class="flex items-center gap-3">
+          <h1 class="text-lg font-semibold leading-6 text-white">Agent runtime</h1>
+          <span
+            id="connection-state"
+            class="rounded-full bg-[#23302c] px-2.5 py-1 text-xs text-[#c8d6d0]"
+          >
+            connecting
+          </span>
+        </div>
       </div>
+
+      <nav class="flex flex-1 gap-1 overflow-x-auto rounded-md border border-white/10 bg-[#14191a] p-1">
+        <button type="button" class="hermes-tab is-active" data-tab-target="run-panel">
+          Run
+        </button>
+        <button type="button" class="hermes-tab" data-tab-target="approvals-panel">
+          Approvals
+        </button>
+        <button type="button" class="hermes-tab" data-tab-target="trace-panel">Trace</button>
+        <button type="button" class="hermes-tab" data-tab-target="browser-panel">Browser</button>
+        <button type="button" class="hermes-tab" data-tab-target="output-panel">Output</button>
+        <button type="button" class="hermes-tab" data-tab-target="integrations-panel">
+          Integrations
+        </button>
+      </nav>
+
       <a
         href={~p"/auth/google/start"}
         class="rounded-md border border-[#79d6b5]/50 px-3 py-2 text-sm font-medium text-[#bcf4de] transition hover:bg-[#1f3f35]"
       >
-        Connect Google Calendar
+        Connect Calendar
       </a>
     </div>
-  </header>
 
-  <main class="mx-auto grid max-w-7xl gap-4 px-5 py-5 lg:grid-cols-[360px_1fr_360px]">
-    <section class="space-y-4">
-      <form
-        id="task-form"
-        class="rounded-lg border border-white/10 bg-[#171c1d] p-4 shadow-xl shadow-black/20"
-      >
-        <label class="block text-sm font-medium text-[#dce8e2]" for="topic">
-          Task
-        </label>
-        <textarea
-          id="topic"
-          class="mt-2 min-h-32 w-full resize-none rounded-md border border-white/10 bg-[#0e1112] p-3 text-sm text-white outline-none ring-0 placeholder:text-[#7d8984] focus:border-[#79d6b5]"
-        >Research tomorrow's useful AI events near UQ, pick one option, add it to my Google Calendar, and create a reminder.</textarea>
-
-        <label class="mt-4 block text-sm font-medium text-[#dce8e2]" for="audience">
-          Audience
-        </label>
-        <input
-          id="audience"
-          value="hackathon judges"
-          class="mt-2 w-full rounded-md border border-white/10 bg-[#0e1112] p-3 text-sm text-white outline-none focus:border-[#79d6b5]"
-        />
-
-        <label class="mt-4 block text-sm font-medium text-[#dce8e2]" for="constraints">
-          Constraints
-        </label>
-        <input
-          id="constraints"
-          value="Use live sources, ask before write actions, keep outputs pitch-ready."
-          class="mt-2 w-full rounded-md border border-white/10 bg-[#0e1112] p-3 text-sm text-white outline-none focus:border-[#79d6b5]"
-        />
-
-        <button
-          type="submit"
-          class="mt-4 w-full rounded-md bg-[#79d6b5] px-4 py-3 text-sm font-semibold text-[#07110d] transition hover:bg-[#94e3c8]"
+    <section class="border-t border-white/10 bg-[#101516] px-4 py-3">
+      <div class="hermes-panel" id="run-panel">
+        <form
+          id="task-form"
+          class="grid gap-3 lg:grid-cols-[minmax(320px,1fr)_220px_minmax(260px,360px)_160px]"
         >
-          Start delegated run
-        </button>
-      </form>
-
-      <div class="rounded-lg border border-white/10 bg-[#171c1d] p-4">
-        <h2 class="text-sm font-semibold text-white">Integrations</h2>
-        <div id="integration-list" class="mt-3 space-y-2 text-sm text-[#b9c7c0]">
-          <div>Playwright browser</div>
-          <div>Serper search</div>
-          <div>Google Calendar OAuth</div>
-          <div>Local scheduler</div>
-          <div>Optional Apache Camel bridge</div>
-        </div>
+          <textarea
+            id="topic"
+            class="min-h-16 resize-none rounded-md border border-white/10 bg-[#090c0d] p-3 text-sm text-white outline-none focus:border-[#79d6b5]"
+          >Research tomorrow's useful AI events near UQ, pick one option, add it to my Google Calendar, and create a reminder.</textarea>
+          <input
+            id="audience"
+            value="hackathon judges"
+            class="rounded-md border border-white/10 bg-[#090c0d] p-3 text-sm text-white outline-none focus:border-[#79d6b5]"
+          />
+          <input
+            id="constraints"
+            value="Use live sources, ask before write actions, keep outputs pitch-ready."
+            class="rounded-md border border-white/10 bg-[#090c0d] p-3 text-sm text-white outline-none focus:border-[#79d6b5]"
+          />
+          <button
+            type="submit"
+            class="rounded-md bg-[#79d6b5] px-4 py-3 text-sm font-semibold text-[#07110d] transition hover:bg-[#94e3c8]"
+          >
+            Start run
+          </button>
+        </form>
       </div>
-    </section>
 
-    <section class="min-h-[620px] overflow-hidden rounded-lg border border-white/10 bg-[#0c0f10] shadow-xl shadow-black/30">
-      <div class="flex items-center justify-between border-b border-white/10 px-4 py-3">
-        <div>
-          <h2 class="text-sm font-semibold text-white">Live agent graph</h2>
-          <p id="session-label" class="text-xs text-[#91a09a]">No active session</p>
-        </div>
-        <div
-          id="connection-state"
-          class="rounded-full bg-[#2e3634] px-3 py-1 text-xs text-[#c8d6d0]"
-        >
-          connecting
-        </div>
-      </div>
-      <div id="agent-graph" class="h-[560px] w-full" data-three-graph></div>
-    </section>
-
-    <section class="grid gap-4">
-      <div class="rounded-lg border border-white/10 bg-[#171c1d]">
-        <div class="border-b border-white/10 px-4 py-3">
-          <h2 class="text-sm font-semibold text-white">Approvals</h2>
-        </div>
-        <div
-          id="approval-panel"
-          class="max-h-64 space-y-3 overflow-auto p-4 text-sm text-[#b9c7c0]"
-        >
+      <div class="hermes-panel hidden" id="approvals-panel">
+        <div id="approval-panel" class="flex max-h-48 gap-3 overflow-auto text-sm text-[#b9c7c0]">
           <p class="text-[#7d8984]">Write actions will appear here.</p>
         </div>
       </div>
 
-      <div class="rounded-lg border border-white/10 bg-[#171c1d]">
-        <div class="border-b border-white/10 px-4 py-3">
-          <h2 class="text-sm font-semibold text-white">Trace</h2>
-        </div>
-        <div id="trace-log" class="max-h-80 space-y-2 overflow-auto p-4 text-xs text-[#b9c7c0]">
+      <div class="hermes-panel hidden" id="trace-panel">
+        <div
+          id="trace-log"
+          class="grid max-h-48 gap-2 overflow-auto text-xs text-[#b9c7c0] md:grid-cols-2 xl:grid-cols-3"
+        >
         </div>
       </div>
 
-      <div class="rounded-lg border border-white/10 bg-[#171c1d]">
-        <div class="border-b border-white/10 px-4 py-3">
-          <h2 class="text-sm font-semibold text-white">Browser agent</h2>
-        </div>
-        <div id="browser-observation" class="max-h-80 overflow-auto p-4 text-sm text-[#b9c7c0]">
+      <div class="hermes-panel hidden" id="browser-panel">
+        <div id="browser-observation" class="max-h-56 overflow-auto text-sm text-[#b9c7c0]">
           <p class="text-[#7d8984]">Browser observations will appear here.</p>
         </div>
       </div>
 
-      <div class="rounded-lg border border-white/10 bg-[#171c1d]">
-        <div class="border-b border-white/10 px-4 py-3">
-          <h2 class="text-sm font-semibold text-white">Final outline</h2>
-        </div>
-        <div id="final-outline" class="max-h-80 overflow-auto p-4 text-sm text-[#b9c7c0]">
+      <div class="hermes-panel hidden" id="output-panel">
+        <div
+          id="final-outline"
+          class="grid max-h-56 gap-3 overflow-auto text-sm text-[#b9c7c0] md:grid-cols-2 xl:grid-cols-4"
+        >
           <p class="text-[#7d8984]">The synthesizer will write the pitch outline here.</p>
         </div>
       </div>
+
+      <div class="hermes-panel hidden" id="integrations-panel">
+        <div class="grid gap-3 text-sm text-[#b9c7c0] md:grid-cols-3 xl:grid-cols-6">
+          <div class="rounded-md border border-white/10 bg-[#090c0d] p-3">
+            OpenAI: <span id="model-state">checking</span>
+          </div>
+          <div class="rounded-md border border-white/10 bg-[#090c0d] p-3">Playwright browser</div>
+          <div class="rounded-md border border-white/10 bg-[#090c0d] p-3">Serper search</div>
+          <div class="rounded-md border border-white/10 bg-[#090c0d] p-3">Google Calendar</div>
+          <div class="rounded-md border border-white/10 bg-[#090c0d] p-3">Local scheduler</div>
+          <div class="rounded-md border border-white/10 bg-[#090c0d] p-3">
+            Optional Camel bridge
+          </div>
+        </div>
+      </div>
     </section>
+  </header>
+
+  <main class="relative h-full pt-40">
+    <div class="absolute left-4 top-44 z-10 rounded-md border border-white/10 bg-[#0d1112]/80 px-3 py-2 text-xs text-[#91a09a] backdrop-blur">
+      <span class="text-[#dce8e2]">Session</span>
+      <span id="session-label">none</span>
+    </div>
+    <div id="agent-graph" class="h-full w-full" data-three-graph></div>
   </main>
 </div>

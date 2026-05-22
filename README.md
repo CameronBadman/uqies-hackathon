@@ -42,6 +42,8 @@ BETTER_HERMES_ENABLE_PLAYWRIGHT=1 mix phx.server
 
 ```sh
 export SERPER_API_KEY=...
+export OPENAI_API_KEY=...
+export OPENAI_MODEL=gpt-5-nano
 export GOOGLE_CLIENT_ID=...
 export GOOGLE_CLIENT_SECRET=...
 export GOOGLE_REDIRECT_URI=http://localhost:4000/auth/google/callback
@@ -49,8 +51,10 @@ export GOOGLE_ACCESS_TOKEN=...
 export CAMEL_BRIDGE_URL=...
 ```
 
-`SERPER_API_KEY` enables live search. Google OAuth can be started from the UI.
-`GOOGLE_ACCESS_TOKEN` is useful for a quick local calendar smoke test.
+`SERPER_API_KEY` enables live search. `OPENAI_API_KEY` enables model-backed
+synthesis through the Responses API. The default model is `gpt-5-nano` to keep
+demo costs low. Google OAuth can be started from the UI. `GOOGLE_ACCESS_TOKEN`
+is useful for a quick local calendar smoke test.
 
 ## Architecture
 

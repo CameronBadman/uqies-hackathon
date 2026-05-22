@@ -9,7 +9,14 @@ defmodule BetterHermes.Runtime.Session do
 
   use GenServer, restart: :temporary
 
-  alias BetterHermes.Integrations.{GoogleCalendar, PlaywrightBrowser, Scheduler, Serper}
+  alias BetterHermes.Integrations.{
+    GoogleCalendar,
+    OpenAIResponses,
+    PlaywrightBrowser,
+    Scheduler,
+    Serper
+  }
+
   alias BetterHermes.Integrations.Registry, as: IntegrationRegistry
   alias BetterHermes.Trace
 
@@ -20,7 +27,7 @@ defmodule BetterHermes.Runtime.Session do
     {"analyst", "Evidence analyst", "native", "Ranks evidence, risks, and useful next steps."},
     {"calendar", "Calendar agent", "google_api", "Prepares and creates Google Calendar events."},
     {"scheduler", "Scheduler agent", "scheduler", "Creates cron-like in-app reminders."},
-    {"synthesizer", "Pitch synthesizer", "native", "Turns the work into a pitch slide outline."}
+    {"synthesizer", "Pitch synthesizer", "openai", "Turns the work into a pitch slide outline."}
   ]
 
   def start_link(%{"session_id" => session_id} = params) do
@@ -60,7 +67,12 @@ defmodule BetterHermes.Runtime.Session do
     Trace.emit(state.session_id, "job_started", %{
       "summary" => state.topic,
       "status" => "running",
-      "integrations" => IntegrationRegistry.catalog()
+      "integrations" => IntegrationRegistry.catalog(),
+      "model" => %{
+        "provider" => "openai",
+        "model" => OpenAIResponses.model(),
+        "available" => OpenAIResponses.available?()
+      }
     })
 
     for {id, label, backend, summary} <- @agent_specs do
@@ -240,7 +252,41 @@ defmodule BetterHermes.Runtime.Session do
       "summary" => "Creating pitch slide outline."
     })
 
-    outline = pitch_outline(state)
+    Trace.emit(state.session_id, "tool_started", %{
+      "agent_id" => "synthesizer",
+      "tool_id" => "llm.openai",
+      "backend" => "openai",
+      "status" => "running",
+      "summary" => "Trying OpenAI Responses API with #{OpenAIResponses.model()}."
+    })
+
+    {outline, model_payload} =
+      case OpenAIResponses.pitch_outline(state) do
+        {:ok, outline} ->
+          {outline,
+           %{
+             "mode" => "live",
+             "model" => OpenAIResponses.model(),
+             "summary" => "Generated outline with OpenAI Responses API."
+           }}
+
+        {:error, reason} ->
+          {pitch_outline(state),
+           %{
+             "mode" => "fallback",
+             "model" => OpenAIResponses.model(),
+             "summary" =>
+               "No model call completed. Using deterministic fallback: #{inspect(reason)}"
+           }}
+      end
+
+    Trace.emit(state.session_id, "tool_completed", %{
+      "agent_id" => "synthesizer",
+      "tool_id" => "llm.openai",
+      "status" => if(model_payload["mode"] == "live", do: "completed", else: "unavailable"),
+      "summary" => model_payload["summary"],
+      "payload" => model_payload
+    })
 
     Trace.emit(state.session_id, "job_completed", %{
       "agent_id" => "synthesizer",

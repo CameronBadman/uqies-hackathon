@@ -33,6 +33,14 @@ defmodule BetterHermes.Integrations.Registry do
       side_effects: ["scheduled_action"]
     },
     %{
+      id: "llm.openai",
+      label: "OpenAI Responses API",
+      backend: "openai",
+      capabilities: ["pitch_outline", "reasoning"],
+      side_effects: [],
+      optional: true
+    },
+    %{
       id: "camel.bridge",
       label: "Apache Camel bridge",
       backend: "camel_bridge",

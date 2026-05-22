@@ -3,6 +3,6 @@ defmodule BetterHermesWeb.PageControllerTest do
 
   test "GET /", %{conn: conn} do
     conn = get(conn, ~p"/")
-    assert html_response(conn, 200) =~ "Personal assistant agent runtime"
+    assert html_response(conn, 200) =~ "Agent runtime"
   end
 end

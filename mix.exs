@@ -21,7 +21,7 @@ defmodule BetterHermes.MixProject do
   def application do
     [
       mod: {BetterHermes.Application, []},
-      extra_applications: [:logger, :runtime_tools]
+      extra_applications: [:logger, :runtime_tools, :inets, :ssl]
     ]
   end
 

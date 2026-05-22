@@ -58,6 +58,7 @@ if (graphContainer) {
   const browserObservation = document.getElementById("browser-observation")
   const connectionState = document.getElementById("connection-state")
   const sessionLabel = document.getElementById("session-label")
+  const modelState = document.getElementById("model-state")
   let traceChannel = null
 
   socket.connect()
@@ -69,6 +70,15 @@ if (graphContainer) {
   lobby.join()
     .receive("ok", () => connectionState.textContent = "ready")
     .receive("error", () => connectionState.textContent = "join failed")
+
+  document.querySelectorAll("[data-tab-target]").forEach(button => {
+    button.addEventListener("click", () => {
+      document.querySelectorAll("[data-tab-target]").forEach(tab => tab.classList.remove("is-active"))
+      document.querySelectorAll(".hermes-panel").forEach(panel => panel.classList.add("hidden"))
+      button.classList.add("is-active")
+      document.getElementById(button.dataset.tabTarget)?.classList.remove("hidden")
+    })
+  })
 
   document.getElementById("task-form").addEventListener("submit", event => {
     event.preventDefault()
@@ -100,8 +110,10 @@ if (graphContainer) {
     traceChannel.on("trace_event", event => {
       graph.applyEvent(event)
       appendTrace(event)
+      if (event.type === "job_started" && event.model) renderModelState(event.model)
       if (event.type === "approval_required") appendApproval(event)
       if (event.tool_id === "browser.playwright" && event.payload) renderBrowserObservation(event.payload)
+      if (event.tool_id === "llm.openai" && event.payload) renderModelState(event.payload)
       if (event.type === "job_completed") renderOutline(event.payload?.outline || [])
     })
   }
@@ -116,7 +128,7 @@ if (graphContainer) {
   function appendApproval(event) {
     if (approvalPanel.querySelector("p")) approvalPanel.innerHTML = ""
     const card = document.createElement("div")
-    card.className = "rounded-md border border-[#f2c45b]/40 bg-[#211d11] p-3"
+    card.className = "min-w-80 rounded-md border border-[#f2c45b]/40 bg-[#211d11] p-3"
     const title = document.createElement("div")
     title.className = "font-medium text-[#ffe0a1]"
     title.textContent = event.summary
@@ -150,7 +162,7 @@ if (graphContainer) {
     finalOutline.innerHTML = ""
     for (const slide of outline) {
       const section = document.createElement("section")
-      section.className = "mb-4 rounded-md border border-white/10 bg-[#0e1112] p-3"
+      section.className = "rounded-md border border-white/10 bg-[#0e1112] p-3"
       const heading = document.createElement("h3")
       heading.className = "font-semibold text-white"
       heading.textContent = slide.slide
@@ -196,6 +208,23 @@ if (graphContainer) {
     mode.className = "mt-3 text-xs text-[#7d8984]"
     mode.textContent = `mode: ${payload.mode || "unknown"}`
     browserObservation.appendChild(mode)
+  }
+
+  function renderModelState(payload) {
+    if (!modelState) return
+    if (payload.available === false) {
+      modelState.textContent = `${payload.model || "OpenAI"} not configured`
+      return
+    }
+    if (payload.mode === "live") {
+      modelState.textContent = `${payload.model} live`
+      return
+    }
+    if (payload.mode === "fallback") {
+      modelState.textContent = `${payload.model} fallback`
+      return
+    }
+    modelState.textContent = payload.available ? `${payload.model} available` : "fallback"
   }
 }
 
