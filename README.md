@@ -19,6 +19,18 @@ mix phx.server
 
 Open http://localhost:4000.
 
+## Nix Dev Shell
+
+```sh
+/nix/var/nix/profiles/default/bin/nix develop
+mix setup
+npm install --prefix assets
+mix phx.server
+```
+
+The dev shell includes Elixir 1.19 on Erlang/OTP 28, Node 22, Phoenix watcher
+dependencies, `inotify-tools`, `watchman`, and Playwright browser binaries.
+
 ## Optional Environment
 
 ```sh

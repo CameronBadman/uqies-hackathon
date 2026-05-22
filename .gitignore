@@ -35,3 +35,6 @@ better_hermes-*.tar
 npm-debug.log
 /assets/node_modules/
 
+# Local Nix shell tool homes.
+/.nix-mix/
+/.nix-hex/
