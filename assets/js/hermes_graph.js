@@ -1,13 +1,23 @@
 import * as THREE from "three"
 
 const STATUS_COLORS = {
-  idle: 0x74827d,
-  running: 0x79d6b5,
-  waiting_for_approval: 0xf2c45b,
-  completed: 0x8bd45d,
+  idle: 0x8fa19a,
+  running: 0x5ff0c3,
+  waiting_for_approval: 0xffc857,
+  completed: 0x91ee67,
   failed: 0xe86b6b,
-  rejected: 0xa775d6,
-  unavailable: 0x87909c
+  rejected: 0xbe8aff,
+  unavailable: 0xa4adb9
+}
+
+const STATUS_ACCENTS = {
+  idle: 0xc4d3cc,
+  running: 0xe5fff4,
+  waiting_for_approval: 0xfff0bd,
+  completed: 0xe8ffd8,
+  failed: 0xffd0d0,
+  rejected: 0xead8ff,
+  unavailable: 0xe1e7ef
 }
 
 const NODE_LAYOUT = {
@@ -42,28 +52,34 @@ export class HermesGraph {
     this.panStart = new THREE.Vector2()
     this.cameraStart = new THREE.Vector3()
     this.scene = new THREE.Scene()
-    this.scene.background = new THREE.Color(0x090c0d)
+    this.scene.background = new THREE.Color(0x070a0b)
 
     this.defaultCamera = new THREE.Vector3(0, 0, 92)
     this.camera = new THREE.PerspectiveCamera(50, 1, 0.1, 1000)
     this.camera.position.copy(this.defaultCamera)
 
-    this.renderer = new THREE.WebGLRenderer({antialias: true})
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
+    this.renderer = new THREE.WebGLRenderer({antialias: true, powerPreference: "high-performance"})
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 3))
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping
+    this.renderer.toneMappingExposure = 1.16
     this.container.appendChild(this.renderer.domElement)
 
     this.clock = new THREE.Clock()
-    this.edgeMaterial = new THREE.LineBasicMaterial({color: 0x396e61, transparent: true, opacity: 0.55})
+    this.edgeMaterial = new THREE.LineBasicMaterial({color: 0x65bda6, transparent: true, opacity: 0.5})
     this.grid = this.createGrid()
-    this.scene.add(this.grid)
+    this.nebula = this.createNebula()
+    this.scene.add(this.nebula, this.grid)
     this.scene.add(this.createStarField())
 
-    const ambient = new THREE.AmbientLight(0xffffff, 0.55)
-    const key = new THREE.PointLight(0x79d6b5, 5, 140)
-    const warm = new THREE.PointLight(0xf2c45b, 2, 120)
+    const ambient = new THREE.AmbientLight(0xffffff, 0.42)
+    const key = new THREE.PointLight(0x6af1c7, 6.5, 150)
+    const warm = new THREE.PointLight(0xffc857, 2.6, 120)
+    const rim = new THREE.DirectionalLight(0xbbe7ff, 1.7)
     key.position.set(-25, 26, 38)
     warm.position.set(34, -18, 32)
-    this.scene.add(ambient, key, warm)
+    rim.position.set(0, 0, 60)
+    this.scene.add(ambient, key, warm, rim)
 
     window.addEventListener("resize", () => this.resize())
     this.renderer.domElement.addEventListener("pointerdown", event => this.onPointerDown(event))
@@ -131,31 +147,67 @@ export class HermesGraph {
     group.position.set(position[0], position[1], position[2])
 
     const color = STATUS_COLORS[status] || STATUS_COLORS.idle
+    const accent = STATUS_ACCENTS[status] || STATUS_ACCENTS.idle
+    const coreGeometry = new THREE.DodecahedronGeometry(2.45 * scale, 1)
     const core = new THREE.Mesh(
-      new THREE.IcosahedronGeometry(2.3 * scale, 3),
-      new THREE.MeshStandardMaterial({
+      coreGeometry,
+      new THREE.MeshPhysicalMaterial({
         color,
+        clearcoat: 0.85,
+        clearcoatRoughness: 0.18,
         emissive: color,
-        emissiveIntensity: 0.38,
-        roughness: 0.28,
-        metalness: 0.22
+        emissiveIntensity: 0.22,
+        roughness: 0.18,
+        metalness: 0.5
       })
     )
 
+    const edgeOutline = new THREE.LineSegments(
+      new THREE.EdgesGeometry(coreGeometry, 18),
+      new THREE.LineBasicMaterial({color: accent, transparent: true, opacity: 0.85})
+    )
+
     const halo = new THREE.Mesh(
-      new THREE.TorusGeometry(3.25 * scale, 0.045, 12, 96),
-      new THREE.MeshBasicMaterial({color, transparent: true, opacity: 0.75})
+      new THREE.TorusGeometry(3.25 * scale, 0.035, 8, 128),
+      new THREE.MeshBasicMaterial({color: accent, transparent: true, opacity: 0.86})
     )
     halo.rotation.x = Math.PI / 2
 
-    const labelSprite = this.createLabel(label)
-    labelSprite.position.set(0, -4.2 * scale, 0)
+    const outerHalo = new THREE.Mesh(
+      new THREE.TorusGeometry(4.08 * scale, 0.018, 8, 160),
+      new THREE.MeshBasicMaterial({color, transparent: true, opacity: 0.42})
+    )
+    outerHalo.rotation.x = Math.PI / 2
+    outerHalo.rotation.y = Math.PI / 5
 
-    group.add(core, halo, labelSprite)
+    const verticalRing = new THREE.Mesh(
+      new THREE.TorusGeometry(3.64 * scale, 0.018, 8, 128),
+      new THREE.MeshBasicMaterial({color: accent, transparent: true, opacity: 0.38})
+    )
+    verticalRing.rotation.y = Math.PI / 2.35
+
+    const labelSprite = this.createLabel(label)
+    labelSprite.position.set(0, -5.15 * scale, 0)
+
+    group.add(core, edgeOutline, halo, outerHalo, verticalRing, labelSprite)
     this.scene.add(group)
     core.userData.nodeId = id
     halo.userData.nodeId = id
-    this.nodes.set(id, {id, label, status, group, core, halo, labelSprite, baseY: position[1], scale, grabbed: false})
+    this.nodes.set(id, {
+      id,
+      label,
+      status,
+      group,
+      core,
+      edgeOutline,
+      halo,
+      outerHalo,
+      verticalRing,
+      labelSprite,
+      baseY: position[1],
+      scale,
+      grabbed: false
+    })
   }
 
   updateNode(id, status) {
@@ -163,10 +215,14 @@ export class HermesGraph {
     if (!node) return
     node.status = status
     const color = STATUS_COLORS[status] || STATUS_COLORS.idle
+    const accent = STATUS_ACCENTS[status] || STATUS_ACCENTS.idle
     node.core.material.color.setHex(color)
     node.core.material.emissive.setHex(color)
-    node.halo.material.color.setHex(color)
-    node.halo.material.opacity = status === "running" ? 0.95 : 0.7
+    node.edgeOutline.material.color.setHex(accent)
+    node.halo.material.color.setHex(accent)
+    node.outerHalo.material.color.setHex(color)
+    node.verticalRing.material.color.setHex(accent)
+    node.halo.material.opacity = status === "running" ? 1 : 0.78
   }
 
   addEdge(from, to, pulse = false) {
@@ -206,11 +262,15 @@ export class HermesGraph {
     for (const [index, node] of Array.from(this.nodes.values()).entries()) {
       node.core.rotation.x += 0.008
       node.core.rotation.y += 0.012
+      node.edgeOutline.rotation.copy(node.core.rotation)
       node.halo.rotation.z -= 0.01 + index * 0.0007
+      node.outerHalo.rotation.z += 0.006
+      node.verticalRing.rotation.x += 0.004
       if (!node.grabbed) node.group.position.y = node.baseY + Math.sin(t * 1.2 + index) * 0.38
       const pulse = node.status === "running" || node.status === "waiting_for_approval"
       if (!node.grabbed && node !== this.hoveredNode) {
         node.halo.scale.setScalar(pulse ? 1 + Math.sin(t * 4 + index) * 0.08 : 1)
+        node.outerHalo.scale.setScalar(pulse ? 1 + Math.cos(t * 3.2 + index) * 0.04 : 1)
       }
     }
 
@@ -221,6 +281,7 @@ export class HermesGraph {
 
     this.animateParticles(0.012)
     this.grid.rotation.z = Math.sin(t * 0.12) * 0.02
+    this.nebula.rotation.z = Math.sin(t * 0.04) * 0.035
     this.scene.rotation.y = Math.sin(t * 0.18) * 0.08
     this.renderer.render(this.scene, this.camera)
   }
@@ -241,6 +302,7 @@ export class HermesGraph {
     node.grabbed = true
     node.halo.material.opacity = 1
     node.halo.scale.setScalar(1.18)
+    node.outerHalo.scale.setScalar(1.12)
     this.dragPlane.setFromNormalAndCoplanarPoint(new THREE.Vector3(0, 0, 1), node.group.position)
     this.setPointer(event)
     this.raycaster.setFromCamera(this.pointer, this.camera)
@@ -274,9 +336,15 @@ export class HermesGraph {
 
     const node = this.pickNode(event)
     if (node !== this.hoveredNode) {
-      if (this.hoveredNode && !this.hoveredNode.grabbed) this.hoveredNode.halo.scale.setScalar(1)
+      if (this.hoveredNode && !this.hoveredNode.grabbed) {
+        this.hoveredNode.halo.scale.setScalar(1)
+        this.hoveredNode.outerHalo.scale.setScalar(1)
+      }
       this.hoveredNode = node
-      if (node) node.halo.scale.setScalar(1.12)
+      if (node) {
+        node.halo.scale.setScalar(1.14)
+        node.outerHalo.scale.setScalar(1.08)
+      }
     }
     this.renderer.domElement.style.cursor = node ? "grab" : "default"
   }
@@ -294,6 +362,7 @@ export class HermesGraph {
     if (!this.draggedNode) return
     this.draggedNode.grabbed = false
     this.draggedNode.halo.scale.setScalar(1)
+    this.draggedNode.outerHalo.scale.setScalar(1)
     this.draggedNode.halo.material.opacity = this.draggedNode.status === "running" ? 0.95 : 0.7
     this.draggedNode = null
     if (this.renderer.domElement.hasPointerCapture(event.pointerId)) {
@@ -378,7 +447,7 @@ export class HermesGraph {
 
   createGrid() {
     const group = new THREE.Group()
-    const material = new THREE.LineBasicMaterial({color: 0x18322d, transparent: true, opacity: 0.32})
+    const material = new THREE.LineBasicMaterial({color: 0x1d4f47, transparent: true, opacity: 0.24})
     for (let i = -60; i <= 60; i += 10) {
       const horizontal = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(-70, i, -18),
@@ -393,6 +462,28 @@ export class HermesGraph {
     return group
   }
 
+  createNebula() {
+    const canvas = document.createElement("canvas")
+    canvas.width = 1024
+    canvas.height = 1024
+    const ctx = canvas.getContext("2d")
+    const gradient = ctx.createRadialGradient(512, 512, 40, 512, 512, 520)
+    gradient.addColorStop(0, "rgba(95, 240, 195, 0.20)")
+    gradient.addColorStop(0.35, "rgba(68, 118, 160, 0.08)")
+    gradient.addColorStop(0.72, "rgba(255, 200, 87, 0.035)")
+    gradient.addColorStop(1, "rgba(0, 0, 0, 0)")
+    ctx.fillStyle = gradient
+    ctx.fillRect(0, 0, 1024, 1024)
+
+    const texture = new THREE.CanvasTexture(canvas)
+    texture.colorSpace = THREE.SRGBColorSpace
+    const material = new THREE.SpriteMaterial({map: texture, transparent: true, depthWrite: false})
+    const sprite = new THREE.Sprite(material)
+    sprite.position.set(0, 0, -55)
+    sprite.scale.set(132, 132, 1)
+    return sprite
+  }
+
   createStarField() {
     const geometry = new THREE.BufferGeometry()
     const positions = []
@@ -402,26 +493,32 @@ export class HermesGraph {
     geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3))
     return new THREE.Points(
       geometry,
-      new THREE.PointsMaterial({color: 0x79d6b5, size: 0.14, transparent: true, opacity: 0.45})
+      new THREE.PointsMaterial({color: 0xbefdea, size: 0.13, transparent: true, opacity: 0.58})
     )
   }
 
   createLabel(text) {
     const canvas = document.createElement("canvas")
-    canvas.width = 512
-    canvas.height = 128
+    canvas.width = 1024
+    canvas.height = 256
     const ctx = canvas.getContext("2d")
-    ctx.fillStyle = "rgba(9, 12, 13, 0.72)"
-    ctx.roundRect(24, 30, 464, 62, 14)
+    ctx.imageSmoothingEnabled = true
+    ctx.fillStyle = "rgba(7, 10, 11, 0.88)"
+    ctx.strokeStyle = "rgba(190, 253, 234, 0.42)"
+    ctx.lineWidth = 3
+    ctx.roundRect(48, 58, 928, 116, 24)
     ctx.fill()
-    ctx.font = "600 30px system-ui, -apple-system, Segoe UI, sans-serif"
+    ctx.stroke()
+    ctx.font = "700 58px system-ui, -apple-system, Segoe UI, sans-serif"
     ctx.fillStyle = "#edf3ef"
     ctx.textAlign = "center"
     ctx.textBaseline = "middle"
-    ctx.fillText(text, 256, 61, 430)
+    ctx.fillText(text, 512, 116, 850)
     const texture = new THREE.CanvasTexture(canvas)
+    texture.colorSpace = THREE.SRGBColorSpace
+    texture.anisotropy = Math.min(this.renderer.capabilities.getMaxAnisotropy(), 8)
     const sprite = new THREE.Sprite(new THREE.SpriteMaterial({map: texture, transparent: true}))
-    sprite.scale.set(13, 3.25, 1)
+    sprite.scale.set(18, 4.5, 1)
     return sprite
   }
 }
