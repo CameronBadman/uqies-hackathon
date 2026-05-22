@@ -9,7 +9,8 @@ defmodule BetterHermes.Runtime.Session do
 
   use GenServer, restart: :temporary
 
-  alias BetterHermes.Integrations.{GoogleCalendar, Registry, Scheduler, Serper}
+  alias BetterHermes.Integrations.{GoogleCalendar, Scheduler, Serper}
+  alias BetterHermes.Integrations.Registry, as: IntegrationRegistry
   alias BetterHermes.Trace
 
   @agent_specs [
@@ -50,7 +51,7 @@ defmodule BetterHermes.Runtime.Session do
       calendar_event: nil
     }
 
-    send(self(), :run)
+    Process.send_after(self(), :run, 300)
     {:ok, state}
   end
 
@@ -59,7 +60,7 @@ defmodule BetterHermes.Runtime.Session do
     Trace.emit(state.session_id, "job_started", %{
       "summary" => state.topic,
       "status" => "running",
-      "integrations" => Registry.catalog()
+      "integrations" => IntegrationRegistry.catalog()
     })
 
     for {id, label, backend, summary} <- @agent_specs do

@@ -1,18 +1,42 @@
-# BetterHermes
+# Better Hermes
 
-To start your Phoenix server:
+Better Hermes is a UQIES Build Anything Hackathon 2026 prototype for a visible,
+integration-capable personal assistant runtime.
 
-* Run `mix setup` to install and setup dependencies
-* Start Phoenix endpoint with `mix phx.server` or inside IEx with `iex -S mix phx.server`
+It combines:
 
-Now you can visit [`localhost:4000`](http://localhost:4000) from your browser.
+- A Phoenix/Elixir OTP backend for me6-style delegated agents.
+- A Three.js live graph that shows agents spawning, messaging, using tools, and waiting for approval.
+- Pluggable integrations for Playwright browser work, Serper search, Google Calendar OAuth, local scheduler jobs, and an optional Apache Camel bridge.
+- Approval-gated write actions for calendar writes, scheduled jobs, browser form submission, and future side-effecting Camel routes.
 
-Ready to run in production? Please [check our deployment guides](https://hexdocs.pm/phoenix/deployment.html).
+## Run
 
-## Learn more
+```sh
+mix setup
+mix phx.server
+```
 
-* Official website: https://www.phoenixframework.org/
-* Guides: https://hexdocs.pm/phoenix/overview.html
-* Docs: https://hexdocs.pm/phoenix
-* Forum: https://elixirforum.com/c/phoenix-forum
-* Source: https://github.com/phoenixframework/phoenix
+Open http://localhost:4000.
+
+## Optional Environment
+
+```sh
+export SERPER_API_KEY=...
+export GOOGLE_CLIENT_ID=...
+export GOOGLE_CLIENT_SECRET=...
+export GOOGLE_REDIRECT_URI=http://localhost:4000/auth/google/callback
+export GOOGLE_ACCESS_TOKEN=...
+export CAMEL_BRIDGE_URL=...
+```
+
+`SERPER_API_KEY` enables live search. Google OAuth can be started from the UI.
+`GOOGLE_ACCESS_TOKEN` is useful for a quick local calendar smoke test.
+
+## Architecture
+
+- `BetterHermes.Runtime.Session` owns a single delegated user task.
+- Agents emit structured trace events through Phoenix PubSub and Channels.
+- The frontend consumes those events and updates the Three.js graph.
+- Integration adapters live under `BetterHermes.Integrations`.
+- Flarenv and me6 are treated as prior foundations for future deeper orchestration; this repo owns the hackathon-facing prototype.
