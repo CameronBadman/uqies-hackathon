@@ -35,7 +35,35 @@ defmodule BetterHermes.Integrations.OpenAIResponses do
         "instructions" =>
           "You are the Better Hermes synthesizer agent. Return only JSON with an outline array. Each outline item must have slide and points fields.",
         "input" => prompt(state),
-        "max_output_tokens" => 500
+        "max_output_tokens" => 1200,
+        "reasoning" => %{"effort" => "low"},
+        "text" => %{
+          "verbosity" => "low",
+          "format" => %{
+            "type" => "json_schema",
+            "name" => "pitch_outline",
+            "strict" => true,
+            "schema" => %{
+              "type" => "object",
+              "additionalProperties" => false,
+              "required" => ["outline"],
+              "properties" => %{
+                "outline" => %{
+                  "type" => "array",
+                  "items" => %{
+                    "type" => "object",
+                    "additionalProperties" => false,
+                    "required" => ["slide", "points"],
+                    "properties" => %{
+                      "slide" => %{"type" => "string"},
+                      "points" => %{"type" => "array", "items" => %{"type" => "string"}}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       })
 
     headers = [
