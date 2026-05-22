@@ -80,6 +80,14 @@ if (graphContainer) {
     })
   })
 
+  document.querySelectorAll("[data-graph-action]").forEach(button => {
+    button.addEventListener("click", () => {
+      if (button.dataset.graphAction === "zoom-in") graph.zoomIn()
+      if (button.dataset.graphAction === "zoom-out") graph.zoomOut()
+      if (button.dataset.graphAction === "reset-view") graph.resetView()
+    })
+  })
+
   document.getElementById("task-form").addEventListener("submit", event => {
     event.preventDefault()
     graph.reset()

@@ -38,11 +38,15 @@ export class HermesGraph {
     this.dragIntersection = new THREE.Vector3()
     this.draggedNode = null
     this.hoveredNode = null
+    this.isPanning = false
+    this.panStart = new THREE.Vector2()
+    this.cameraStart = new THREE.Vector3()
     this.scene = new THREE.Scene()
     this.scene.background = new THREE.Color(0x090c0d)
 
+    this.defaultCamera = new THREE.Vector3(0, 0, 92)
     this.camera = new THREE.PerspectiveCamera(50, 1, 0.1, 1000)
-    this.camera.position.set(0, 0, 78)
+    this.camera.position.copy(this.defaultCamera)
 
     this.renderer = new THREE.WebGLRenderer({antialias: true})
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
@@ -66,6 +70,7 @@ export class HermesGraph {
     this.renderer.domElement.addEventListener("pointermove", event => this.onPointerMove(event))
     this.renderer.domElement.addEventListener("pointerup", event => this.onPointerUp(event))
     this.renderer.domElement.addEventListener("pointercancel", event => this.onPointerUp(event))
+    this.renderer.domElement.addEventListener("wheel", event => this.onWheel(event), {passive: false})
     this.resize()
     this.animate()
   }
@@ -222,8 +227,16 @@ export class HermesGraph {
 
   onPointerDown(event) {
     const node = this.pickNode(event)
-    if (!node) return
     event.preventDefault()
+    if (!node) {
+      this.isPanning = true
+      this.panStart.set(event.clientX, event.clientY)
+      this.cameraStart.copy(this.camera.position)
+      this.renderer.domElement.setPointerCapture(event.pointerId)
+      this.renderer.domElement.style.cursor = "move"
+      return
+    }
+
     this.draggedNode = node
     node.grabbed = true
     node.halo.material.opacity = 1
@@ -248,6 +261,17 @@ export class HermesGraph {
       return
     }
 
+    if (this.isPanning) {
+      const rect = this.renderer.domElement.getBoundingClientRect()
+      const visibleHeight = 2 * this.camera.position.z * Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2))
+      const worldPerPixel = visibleHeight / Math.max(rect.height, 1)
+      const dx = event.clientX - this.panStart.x
+      const dy = event.clientY - this.panStart.y
+      this.camera.position.x = this.cameraStart.x - dx * worldPerPixel
+      this.camera.position.y = this.cameraStart.y + dy * worldPerPixel
+      return
+    }
+
     const node = this.pickNode(event)
     if (node !== this.hoveredNode) {
       if (this.hoveredNode && !this.hoveredNode.grabbed) this.hoveredNode.halo.scale.setScalar(1)
@@ -258,6 +282,15 @@ export class HermesGraph {
   }
 
   onPointerUp(event) {
+    if (this.isPanning) {
+      this.isPanning = false
+      if (this.renderer.domElement.hasPointerCapture(event.pointerId)) {
+        this.renderer.domElement.releasePointerCapture(event.pointerId)
+      }
+      this.renderer.domElement.style.cursor = this.hoveredNode ? "grab" : "default"
+      return
+    }
+
     if (!this.draggedNode) return
     this.draggedNode.grabbed = false
     this.draggedNode.halo.scale.setScalar(1)
@@ -267,6 +300,29 @@ export class HermesGraph {
       this.renderer.domElement.releasePointerCapture(event.pointerId)
     }
     this.renderer.domElement.style.cursor = this.hoveredNode ? "grab" : "default"
+  }
+
+  onWheel(event) {
+    event.preventDefault()
+    const direction = Math.sign(event.deltaY)
+    const factor = direction > 0 ? 1.12 : 0.88
+    this.setZoom(this.camera.position.z * factor)
+  }
+
+  zoomIn() {
+    this.setZoom(this.camera.position.z * 0.82)
+  }
+
+  zoomOut() {
+    this.setZoom(this.camera.position.z * 1.22)
+  }
+
+  resetView() {
+    this.camera.position.copy(this.defaultCamera)
+  }
+
+  setZoom(distance) {
+    this.camera.position.z = THREE.MathUtils.clamp(distance, 34, 150)
   }
 
   pickNode(event) {

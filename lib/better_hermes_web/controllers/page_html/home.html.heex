@@ -1,5 +1,5 @@
-<div id="hermes-app" class="h-screen overflow-hidden bg-[#090c0d] text-[#edf3ef]">
-  <header class="absolute inset-x-0 top-0 z-20 border-b border-white/10 bg-[#0d1112]/95 shadow-2xl shadow-black/30 backdrop-blur">
+<div id="hermes-app" class="flex h-screen flex-col overflow-hidden bg-[#090c0d] text-[#edf3ef]">
+  <header class="z-20 border-b border-white/10 bg-[#0d1112]/95 shadow-2xl shadow-black/30 backdrop-blur">
     <div class="flex min-h-16 flex-wrap items-center gap-3 px-4 py-3 lg:flex-nowrap">
       <div class="min-w-48">
         <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#79d6b5]">
@@ -114,10 +114,21 @@
     </section>
   </header>
 
-  <main class="relative h-full pt-40">
-    <div class="absolute left-4 top-44 z-10 rounded-md border border-white/10 bg-[#0d1112]/80 px-3 py-2 text-xs text-[#91a09a] backdrop-blur">
+  <main class="relative min-h-0 flex-1">
+    <div class="absolute left-4 top-4 z-10 rounded-md border border-white/10 bg-[#0d1112]/80 px-3 py-2 text-xs text-[#91a09a] backdrop-blur">
       <span class="text-[#dce8e2]">Session</span>
       <span id="session-label">none</span>
+    </div>
+    <div class="absolute right-4 top-4 z-10 flex overflow-hidden rounded-md border border-white/10 bg-[#0d1112]/80 text-sm text-[#dce8e2] backdrop-blur">
+      <button type="button" class="graph-control" data-graph-action="zoom-out">-</button>
+      <button
+        type="button"
+        class="graph-control border-x border-white/10"
+        data-graph-action="reset-view"
+      >
+        Reset
+      </button>
+      <button type="button" class="graph-control" data-graph-action="zoom-in">+</button>
     </div>
     <div id="agent-graph" class="h-full w-full" data-three-graph></div>
   </main>

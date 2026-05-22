@@ -128,3 +128,14 @@
   background: #79d6b5;
   color: #07110d;
 }
+
+.graph-control {
+  min-width: 2.75rem;
+  padding: 0.5rem 0.75rem;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.graph-control:hover {
+  background: #1b2324;
+  color: #ffffff;
+}
