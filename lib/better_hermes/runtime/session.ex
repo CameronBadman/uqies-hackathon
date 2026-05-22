@@ -13,7 +13,8 @@ defmodule BetterHermes.Runtime.Session do
   alias BetterHermes.Trace
 
   @agent_specs [
-    {"browser", "Browser agent", "playwright", "Browses pages, clicks controls, and observes the web."},
+    {"browser", "Browser agent", "playwright",
+     "Browses pages, clicks controls, and observes the web."},
     {"research", "Research agent", "serper", "Finds live evidence and source snippets."},
     {"analyst", "Evidence analyst", "native", "Ranks evidence, risks, and useful next steps."},
     {"calendar", "Calendar agent", "google_api", "Prepares and creates Google Calendar events."},
@@ -41,7 +42,8 @@ defmodule BetterHermes.Runtime.Session do
       session_id: params["session_id"],
       topic: blank_to_default(params["topic"], "Research useful AI events near UQ"),
       audience: blank_to_default(params["audience"], "hackathon judges"),
-      constraints: blank_to_default(params["constraints"], "Prefer credible sources and safe actions."),
+      constraints:
+        blank_to_default(params["constraints"], "Prefer credible sources and safe actions."),
       approvals: %{},
       search_results: [],
       notes: [],
@@ -86,7 +88,8 @@ defmodule BetterHermes.Runtime.Session do
       "agent_id" => "browser",
       "tool_id" => "browser.playwright",
       "backend" => "playwright",
-      "summary" => "Navigate, click, inspect DOM, and stream screenshots when Playwright is configured."
+      "summary" =>
+        "Navigate, click, inspect DOM, and stream screenshots when Playwright is configured."
     })
 
     step(600, :search_started)
@@ -201,7 +204,8 @@ defmodule BetterHermes.Runtime.Session do
       "payload" => reminder
     })
 
-    {:noreply, %{state | approvals: Map.put(state.approvals, approval_id, {:scheduler, reminder})}}
+    {:noreply,
+     %{state | approvals: Map.put(state.approvals, approval_id, {:scheduler, reminder})}}
   end
 
   def handle_info(:synthesize, state) do
@@ -239,7 +243,9 @@ defmodule BetterHermes.Runtime.Session do
         })
 
         step(400, :scheduler_approval)
-        {:noreply, %{state | approvals: Map.delete(state.approvals, approval_id), calendar_event: event}}
+
+        {:noreply,
+         %{state | approvals: Map.delete(state.approvals, approval_id), calendar_event: event}}
 
       {:ok, {:scheduler, reminder}} ->
         {:ok, job} = Scheduler.schedule(reminder["title"], reminder["delay_ms"])
@@ -283,7 +289,8 @@ defmodule BetterHermes.Runtime.Session do
       %{
         "title" => "Serper unavailable: #{inspect(reason)}",
         "url" => "https://serper.dev/",
-        "snippet" => "Configure SERPER_API_KEY for live web search. The runtime continues so the delegation demo remains visible.",
+        "snippet" =>
+          "Configure SERPER_API_KEY for live web search. The runtime continues so the delegation demo remains visible.",
         "query" => topic,
         "source" => "fallback"
       }
@@ -301,13 +308,49 @@ defmodule BetterHermes.Runtime.Session do
 
   defp pitch_outline(state) do
     [
-      %{"slide" => "Title", "points" => ["Better Hermes", "A visible, integration-capable personal assistant runtime"]},
-      %{"slide" => "Problem", "points" => ["Assistants hide their work", "Integrations are brittle", "Users need control over side effects"]},
+      %{
+        "slide" => "Title",
+        "points" => ["Better Hermes", "A visible, integration-capable personal assistant runtime"]
+      },
+      %{
+        "slide" => "Problem",
+        "points" => [
+          "Assistants hide their work",
+          "Integrations are brittle",
+          "Users need control over side effects"
+        ]
+      },
       %{"slide" => "Insight", "points" => Enum.take(state.notes, 3)},
-      %{"slide" => "Solution", "points" => ["me6-style persistent agents", "Live 3D trace graph", "Approval-gated tools"]},
-      %{"slide" => "Integrations", "points" => ["Playwright browser", "Serper search", "Google Calendar OAuth", "Local scheduler", "Optional Camel bridge"]},
-      %{"slide" => "Demo", "points" => ["Watch agents spawn", "Approve calendar/scheduler writes", "Receive a final delegated result"]},
-      %{"slide" => "Next", "points" => ["Attach real me6 eval/action pairs", "Run tools inside Flarenv workspaces", "Expand the Camel-backed connector catalog"]}
+      %{
+        "slide" => "Solution",
+        "points" => ["me6-style persistent agents", "Live 3D trace graph", "Approval-gated tools"]
+      },
+      %{
+        "slide" => "Integrations",
+        "points" => [
+          "Playwright browser",
+          "Serper search",
+          "Google Calendar OAuth",
+          "Local scheduler",
+          "Optional Camel bridge"
+        ]
+      },
+      %{
+        "slide" => "Demo",
+        "points" => [
+          "Watch agents spawn",
+          "Approve calendar/scheduler writes",
+          "Receive a final delegated result"
+        ]
+      },
+      %{
+        "slide" => "Next",
+        "points" => [
+          "Attach real me6 eval/action pairs",
+          "Run tools inside Flarenv workspaces",
+          "Expand the Camel-backed connector catalog"
+        ]
+      }
     ]
   end
 end

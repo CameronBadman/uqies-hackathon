@@ -20,7 +20,8 @@ defmodule BetterHermes.Integrations.PlaywrightBrowser do
        %{
          "url" => url,
          "title" => "Playwright probe not installed",
-         "summary" => "Browser integration boundary is present; install Playwright to execute live browser actions."
+         "summary" =>
+           "Browser integration boundary is present; install Playwright to execute live browser actions."
        }}
     end
   end

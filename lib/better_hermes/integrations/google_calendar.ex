@@ -18,7 +18,8 @@ defmodule BetterHermes.Integrations.GoogleCalendar do
 
     %{
       "summary" => "Better Hermes follow-up: #{topic}",
-      "description" => "Created by Better Hermes for #{audience}. Approval-gated assistant write.",
+      "description" =>
+        "Created by Better Hermes for #{audience}. Approval-gated assistant write.",
       "start" => %{"dateTime" => DateTime.to_iso8601(starts_at)},
       "end" => %{"dateTime" => DateTime.to_iso8601(ends_at)}
     }
@@ -30,11 +31,12 @@ defmodule BetterHermes.Integrations.GoogleCalendar do
       {:ok, Map.put(payload, "summary", "Created Google Calendar event.")}
     else
       {:error, :missing_google_oauth} ->
-        {:error, %{
-          reason: :missing_google_oauth,
-          auth_url: oauth_url(),
-          message: "Connect Google Calendar or set GOOGLE_ACCESS_TOKEN."
-        }}
+        {:error,
+         %{
+           reason: :missing_google_oauth,
+           auth_url: oauth_url(),
+           message: "Connect Google Calendar or set GOOGLE_ACCESS_TOKEN."
+         }}
 
       {:error, reason} ->
         {:error, reason}
@@ -67,7 +69,12 @@ defmodule BetterHermes.Integrations.GoogleCalendar do
 
     headers = [{~c"Content-Type", ~c"application/x-www-form-urlencoded"}]
 
-    case :httpc.request(:post, {@token_endpoint, headers, ~c"application/x-www-form-urlencoded", body}, [], body_format: :binary) do
+    case :httpc.request(
+           :post,
+           {@token_endpoint, headers, ~c"application/x-www-form-urlencoded", body},
+           [],
+           body_format: :binary
+         ) do
       {:ok, {{_, status, _}, _headers, response}} when status in 200..299 ->
         with {:ok, decoded} <- Jason.decode(response),
              token when is_binary(token) <- decoded["access_token"] do
@@ -98,14 +105,23 @@ defmodule BetterHermes.Integrations.GoogleCalendar do
       {~c"Content-Type", ~c"application/json"}
     ]
 
-    case :httpc.request(:post, {@calendar_endpoint, headers, ~c"application/json", body}, [], body_format: :binary) do
-      {:ok, {{_, status, _}, _headers, response}} when status in 200..299 -> Jason.decode(response)
-      {:ok, {{_, status, _}, _headers, response}} -> {:error, {:http_status, status, response}}
-      {:error, reason} -> {:error, reason}
+    case :httpc.request(:post, {@calendar_endpoint, headers, ~c"application/json", body}, [],
+           body_format: :binary
+         ) do
+      {:ok, {{_, status, _}, _headers, response}} when status in 200..299 ->
+        Jason.decode(response)
+
+      {:ok, {{_, status, _}, _headers, response}} ->
+        {:error, {:http_status, status, response}}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
   defp client_id, do: System.get_env("GOOGLE_CLIENT_ID")
   defp client_secret, do: System.get_env("GOOGLE_CLIENT_SECRET")
-  defp redirect_uri, do: System.get_env("GOOGLE_REDIRECT_URI") || "http://localhost:4000/auth/google/callback"
+
+  defp redirect_uri,
+    do: System.get_env("GOOGLE_REDIRECT_URI") || "http://localhost:4000/auth/google/callback"
 end

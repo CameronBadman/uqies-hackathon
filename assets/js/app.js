@@ -24,6 +24,7 @@ import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/better_hermes"
 import topbar from "../vendor/topbar"
+import {HermesGraph} from "./hermes_graph"
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
@@ -45,6 +46,123 @@ liveSocket.connect()
 // >> liveSocket.enableLatencySim(1000)  // enabled for duration of browser session
 // >> liveSocket.disableLatencySim()
 window.liveSocket = liveSocket
+
+const graphContainer = document.querySelector("[data-three-graph]")
+
+if (graphContainer) {
+  const graph = new HermesGraph(graphContainer)
+  const socket = new Socket("/socket")
+  const traceLog = document.getElementById("trace-log")
+  const approvalPanel = document.getElementById("approval-panel")
+  const finalOutline = document.getElementById("final-outline")
+  const connectionState = document.getElementById("connection-state")
+  const sessionLabel = document.getElementById("session-label")
+  let traceChannel = null
+
+  socket.connect()
+  socket.onOpen(() => connectionState.textContent = "connected")
+  socket.onError(() => connectionState.textContent = "socket error")
+  socket.onClose(() => connectionState.textContent = "disconnected")
+
+  const lobby = socket.channel("hermes:lobby", {})
+  lobby.join()
+    .receive("ok", () => connectionState.textContent = "ready")
+    .receive("error", () => connectionState.textContent = "join failed")
+
+  document.getElementById("task-form").addEventListener("submit", event => {
+    event.preventDefault()
+    graph.reset()
+    traceLog.innerHTML = ""
+    approvalPanel.innerHTML = "<p class=\"text-[#7d8984]\">Waiting for write actions.</p>"
+    finalOutline.innerHTML = "<p class=\"text-[#7d8984]\">The synthesizer will write the pitch outline here.</p>"
+
+    lobby.push("start_research", {
+      topic: document.getElementById("topic").value,
+      audience: document.getElementById("audience").value,
+      constraints: document.getElementById("constraints").value
+    }).receive("ok", ({session_id}) => {
+      sessionLabel.textContent = session_id
+      joinTrace(session_id)
+    }).receive("error", response => {
+      appendTrace({type: "job_failed", summary: response.reason || "Unable to start session"})
+    })
+  })
+
+  function joinTrace(sessionId) {
+    if (traceChannel) traceChannel.leave()
+    traceChannel = socket.channel(`trace:${sessionId}`, {})
+    traceChannel.join()
+      .receive("ok", () => connectionState.textContent = "streaming")
+      .receive("error", () => connectionState.textContent = "trace failed")
+
+    traceChannel.on("trace_event", event => {
+      graph.applyEvent(event)
+      appendTrace(event)
+      if (event.type === "approval_required") appendApproval(event)
+      if (event.type === "job_completed") renderOutline(event.payload?.outline || [])
+    })
+  }
+
+  function appendTrace(event) {
+    const item = document.createElement("div")
+    item.className = "rounded-md border border-white/10 bg-[#0e1112] p-2"
+    item.textContent = `${event.type}: ${event.summary || event.agent_id || event.tool_id || event.id || ""}`
+    traceLog.prepend(item)
+  }
+
+  function appendApproval(event) {
+    if (approvalPanel.querySelector("p")) approvalPanel.innerHTML = ""
+    const card = document.createElement("div")
+    card.className = "rounded-md border border-[#f2c45b]/40 bg-[#211d11] p-3"
+    const title = document.createElement("div")
+    title.className = "font-medium text-[#ffe0a1]"
+    title.textContent = event.summary
+    const payload = document.createElement("pre")
+    payload.className = "mt-2 max-h-32 overflow-auto whitespace-pre-wrap text-xs text-[#d7c9a6]"
+    payload.textContent = JSON.stringify(event.payload || {}, null, 2)
+    const actions = document.createElement("div")
+    actions.className = "mt-3 flex gap-2"
+    const approve = document.createElement("button")
+    approve.className = "rounded-md bg-[#79d6b5] px-3 py-2 text-xs font-semibold text-[#07110d]"
+    approve.textContent = "Approve"
+    const reject = document.createElement("button")
+    reject.className = "rounded-md border border-white/15 px-3 py-2 text-xs font-semibold text-white"
+    reject.textContent = "Reject"
+
+    approve.addEventListener("click", () => {
+      traceChannel.push("approve", {approval_id: event.approval_id})
+      card.remove()
+    })
+    reject.addEventListener("click", () => {
+      traceChannel.push("reject", {approval_id: event.approval_id})
+      card.remove()
+    })
+
+    actions.append(approve, reject)
+    card.append(title, payload, actions)
+    approvalPanel.prepend(card)
+  }
+
+  function renderOutline(outline) {
+    finalOutline.innerHTML = ""
+    for (const slide of outline) {
+      const section = document.createElement("section")
+      section.className = "mb-4 rounded-md border border-white/10 bg-[#0e1112] p-3"
+      const heading = document.createElement("h3")
+      heading.className = "font-semibold text-white"
+      heading.textContent = slide.slide
+      const list = document.createElement("ul")
+      list.className = "mt-2 list-disc space-y-1 pl-5"
+      for (const point of slide.points || []) {
+        const li = document.createElement("li")
+        li.textContent = point
+        list.appendChild(li)
+      }
+      section.append(heading, list)
+      finalOutline.appendChild(section)
+    }
+  }
+}
 
 // The lines below enable quality of life phoenix_live_reload
 // development features:
@@ -80,4 +198,3 @@ if (process.env.NODE_ENV === "development") {
     window.liveReloader = reloader
   })
 }
-

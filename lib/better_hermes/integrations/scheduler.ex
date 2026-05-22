@@ -24,7 +24,15 @@ defmodule BetterHermes.Integrations.Scheduler do
   @impl true
   def handle_call({:schedule, title, delay_ms}, _from, state) do
     id = BetterHermes.Trace.unique_id("job")
-    job = %Job{id: id, title: title, delay_ms: delay_ms, status: "scheduled", created_at: DateTime.utc_now()}
+
+    job = %Job{
+      id: id,
+      title: title,
+      delay_ms: delay_ms,
+      status: "scheduled",
+      created_at: DateTime.utc_now()
+    }
+
     Process.send_after(self(), {:fire, id}, delay_ms)
     {:reply, {:ok, job}, Map.put(state, id, job)}
   end
@@ -33,10 +41,11 @@ defmodule BetterHermes.Integrations.Scheduler do
 
   @impl true
   def handle_info({:fire, id}, state) do
-    updated = update_in(state, [id], fn
-      nil -> nil
-      job -> %{job | status: "fired"}
-    end)
+    updated =
+      update_in(state, [id], fn
+        nil -> nil
+        job -> %{job | status: "fired"}
+      end)
 
     {:noreply, updated}
   end
