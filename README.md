@@ -7,6 +7,7 @@ It combines:
 
 - A Phoenix/Elixir OTP backend for me6-style delegated agents.
 - A Three.js live graph that shows agents spawning, messaging, using tools, and waiting for approval.
+- Grab any node in the graph and drag it around while the trace keeps updating.
 - Pluggable integrations for Playwright browser work, Serper search, Google Calendar OAuth, local scheduler jobs, and an optional Apache Camel bridge.
 - Approval-gated write actions for calendar writes, scheduled jobs, browser form submission, and future side-effecting Camel routes.
 
@@ -18,6 +19,17 @@ mix phx.server
 ```
 
 Open http://localhost:4000.
+
+For local credentials, create `.env` from `.env.example`. `.env` is ignored by
+Git.
+
+```sh
+cp .env.example .env
+set -a
+source .env
+set +a
+mix phx.server
+```
 
 ## Nix Dev Shell
 

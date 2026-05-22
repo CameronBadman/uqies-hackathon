@@ -31,6 +31,13 @@ export class HermesGraph {
     this.nodes = new Map()
     this.edges = []
     this.particles = []
+    this.raycaster = new THREE.Raycaster()
+    this.pointer = new THREE.Vector2()
+    this.dragPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0)
+    this.dragOffset = new THREE.Vector3()
+    this.dragIntersection = new THREE.Vector3()
+    this.draggedNode = null
+    this.hoveredNode = null
     this.scene = new THREE.Scene()
     this.scene.background = new THREE.Color(0x090c0d)
 
@@ -55,6 +62,10 @@ export class HermesGraph {
     this.scene.add(ambient, key, warm)
 
     window.addEventListener("resize", () => this.resize())
+    this.renderer.domElement.addEventListener("pointerdown", event => this.onPointerDown(event))
+    this.renderer.domElement.addEventListener("pointermove", event => this.onPointerMove(event))
+    this.renderer.domElement.addEventListener("pointerup", event => this.onPointerUp(event))
+    this.renderer.domElement.addEventListener("pointercancel", event => this.onPointerUp(event))
     this.resize()
     this.animate()
   }
@@ -137,7 +148,9 @@ export class HermesGraph {
 
     group.add(core, halo, labelSprite)
     this.scene.add(group)
-    this.nodes.set(id, {id, label, status, group, core, halo, labelSprite, baseY: position[1], scale})
+    core.userData.nodeId = id
+    halo.userData.nodeId = id
+    this.nodes.set(id, {id, label, status, group, core, halo, labelSprite, baseY: position[1], scale, grabbed: false})
   }
 
   updateNode(id, status) {
@@ -189,9 +202,11 @@ export class HermesGraph {
       node.core.rotation.x += 0.008
       node.core.rotation.y += 0.012
       node.halo.rotation.z -= 0.01 + index * 0.0007
-      node.group.position.y = node.baseY + Math.sin(t * 1.2 + index) * 0.38
+      if (!node.grabbed) node.group.position.y = node.baseY + Math.sin(t * 1.2 + index) * 0.38
       const pulse = node.status === "running" || node.status === "waiting_for_approval"
-      node.halo.scale.setScalar(pulse ? 1 + Math.sin(t * 4 + index) * 0.08 : 1)
+      if (!node.grabbed && node !== this.hoveredNode) {
+        node.halo.scale.setScalar(pulse ? 1 + Math.sin(t * 4 + index) * 0.08 : 1)
+      }
     }
 
     for (const edge of this.edges) {
@@ -203,6 +218,69 @@ export class HermesGraph {
     this.grid.rotation.z = Math.sin(t * 0.12) * 0.02
     this.scene.rotation.y = Math.sin(t * 0.18) * 0.08
     this.renderer.render(this.scene, this.camera)
+  }
+
+  onPointerDown(event) {
+    const node = this.pickNode(event)
+    if (!node) return
+    event.preventDefault()
+    this.draggedNode = node
+    node.grabbed = true
+    node.halo.material.opacity = 1
+    node.halo.scale.setScalar(1.18)
+    this.dragPlane.setFromNormalAndCoplanarPoint(new THREE.Vector3(0, 0, 1), node.group.position)
+    this.setPointer(event)
+    this.raycaster.setFromCamera(this.pointer, this.camera)
+    this.raycaster.ray.intersectPlane(this.dragPlane, this.dragIntersection)
+    this.dragOffset.copy(node.group.position).sub(this.dragIntersection)
+    this.renderer.domElement.setPointerCapture(event.pointerId)
+    this.renderer.domElement.style.cursor = "grabbing"
+  }
+
+  onPointerMove(event) {
+    if (this.draggedNode) {
+      this.setPointer(event)
+      this.raycaster.setFromCamera(this.pointer, this.camera)
+      if (this.raycaster.ray.intersectPlane(this.dragPlane, this.dragIntersection)) {
+        this.draggedNode.group.position.copy(this.dragIntersection.add(this.dragOffset))
+        this.draggedNode.baseY = this.draggedNode.group.position.y
+      }
+      return
+    }
+
+    const node = this.pickNode(event)
+    if (node !== this.hoveredNode) {
+      if (this.hoveredNode && !this.hoveredNode.grabbed) this.hoveredNode.halo.scale.setScalar(1)
+      this.hoveredNode = node
+      if (node) node.halo.scale.setScalar(1.12)
+    }
+    this.renderer.domElement.style.cursor = node ? "grab" : "default"
+  }
+
+  onPointerUp(event) {
+    if (!this.draggedNode) return
+    this.draggedNode.grabbed = false
+    this.draggedNode.halo.scale.setScalar(1)
+    this.draggedNode.halo.material.opacity = this.draggedNode.status === "running" ? 0.95 : 0.7
+    this.draggedNode = null
+    if (this.renderer.domElement.hasPointerCapture(event.pointerId)) {
+      this.renderer.domElement.releasePointerCapture(event.pointerId)
+    }
+    this.renderer.domElement.style.cursor = this.hoveredNode ? "grab" : "default"
+  }
+
+  pickNode(event) {
+    this.setPointer(event)
+    this.raycaster.setFromCamera(this.pointer, this.camera)
+    const meshes = Array.from(this.nodes.values()).map(node => node.core)
+    const [hit] = this.raycaster.intersectObjects(meshes, false)
+    return hit ? this.nodes.get(hit.object.userData.nodeId) : null
+  }
+
+  setPointer(event) {
+    const rect = this.renderer.domElement.getBoundingClientRect()
+    this.pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
+    this.pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
   }
 
   animateParticles(speed) {

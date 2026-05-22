@@ -38,3 +38,8 @@ npm-debug.log
 # Local Nix shell tool homes.
 /.nix-mix/
 /.nix-hex/
+
+# Local secrets and demo credentials.
+.env
+.env.*
+!.env.example
