@@ -18,6 +18,7 @@ defmodule BetterHermesWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
+    get "/demo/browser-target", BrowserDemoController, :show
     get "/auth/google/start", GoogleAuthController, :start
     get "/auth/google/callback", GoogleAuthController, :callback
   end

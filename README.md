@@ -31,6 +31,13 @@ mix phx.server
 The dev shell includes Elixir 1.19 on Erlang/OTP 28, Node 22, Phoenix watcher
 dependencies, `inotify-tools`, `watchman`, and Playwright browser binaries.
 
+To run the browser agent against a real headless browser instead of the built-in
+simulation:
+
+```sh
+BETTER_HERMES_ENABLE_PLAYWRIGHT=1 mix phx.server
+```
+
 ## Optional Environment
 
 ```sh

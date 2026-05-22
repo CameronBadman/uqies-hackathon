@@ -9,7 +9,7 @@ defmodule BetterHermes.Runtime.Session do
 
   use GenServer, restart: :temporary
 
-  alias BetterHermes.Integrations.{GoogleCalendar, Scheduler, Serper}
+  alias BetterHermes.Integrations.{GoogleCalendar, PlaywrightBrowser, Scheduler, Serper}
   alias BetterHermes.Integrations.Registry, as: IntegrationRegistry
   alias BetterHermes.Trace
 
@@ -92,6 +92,30 @@ defmodule BetterHermes.Runtime.Session do
       "summary" =>
         "Navigate, click, inspect DOM, and stream screenshots when Playwright is configured."
     })
+
+    browser_url =
+      System.get_env("BETTER_HERMES_BROWSER_DEMO_URL") ||
+        "http://127.0.0.1:4000/demo/browser-target"
+
+    case PlaywrightBrowser.observe(browser_url) do
+      {:ok, observation} ->
+        Trace.emit(state.session_id, "tool_observation", %{
+          "agent_id" => "browser",
+          "tool_id" => "browser.playwright",
+          "status" => "observed",
+          "summary" => observation["summary"] || "Browser interaction observed.",
+          "payload" => observation
+        })
+
+      {:error, reason} ->
+        Trace.emit(state.session_id, "tool_observation", %{
+          "agent_id" => "browser",
+          "tool_id" => "browser.playwright",
+          "status" => "failed",
+          "summary" => "Browser probe unavailable: #{inspect(reason)}",
+          "payload" => %{"error" => inspect(reason), "url" => browser_url}
+        })
+    end
 
     step(600, :search_started)
     {:noreply, state}

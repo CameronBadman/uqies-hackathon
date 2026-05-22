@@ -55,6 +55,7 @@ if (graphContainer) {
   const traceLog = document.getElementById("trace-log")
   const approvalPanel = document.getElementById("approval-panel")
   const finalOutline = document.getElementById("final-outline")
+  const browserObservation = document.getElementById("browser-observation")
   const connectionState = document.getElementById("connection-state")
   const sessionLabel = document.getElementById("session-label")
   let traceChannel = null
@@ -74,6 +75,7 @@ if (graphContainer) {
     graph.reset()
     traceLog.innerHTML = ""
     approvalPanel.innerHTML = "<p class=\"text-[#7d8984]\">Waiting for write actions.</p>"
+    browserObservation.innerHTML = "<p class=\"text-[#7d8984]\">Browser observations will appear here.</p>"
     finalOutline.innerHTML = "<p class=\"text-[#7d8984]\">The synthesizer will write the pitch outline here.</p>"
 
     lobby.push("start_research", {
@@ -99,6 +101,7 @@ if (graphContainer) {
       graph.applyEvent(event)
       appendTrace(event)
       if (event.type === "approval_required") appendApproval(event)
+      if (event.tool_id === "browser.playwright" && event.payload) renderBrowserObservation(event.payload)
       if (event.type === "job_completed") renderOutline(event.payload?.outline || [])
     })
   }
@@ -161,6 +164,38 @@ if (graphContainer) {
       section.append(heading, list)
       finalOutline.appendChild(section)
     }
+  }
+
+  function renderBrowserObservation(payload) {
+    browserObservation.innerHTML = ""
+    const summary = document.createElement("p")
+    summary.className = "font-medium text-white"
+    summary.textContent = payload.summary || payload.title || "Browser observation"
+    browserObservation.appendChild(summary)
+
+    if (payload.steps?.length) {
+      const list = document.createElement("ol")
+      list.className = "mt-3 list-decimal space-y-1 pl-5 text-[#b9c7c0]"
+      for (const step of payload.steps) {
+        const item = document.createElement("li")
+        item.textContent = step
+        list.appendChild(item)
+      }
+      browserObservation.appendChild(list)
+    }
+
+    if (payload.screenshot) {
+      const image = document.createElement("img")
+      image.className = "mt-3 w-full rounded-md border border-white/10"
+      image.alt = "Browser agent screenshot"
+      image.src = payload.screenshot
+      browserObservation.appendChild(image)
+    }
+
+    const mode = document.createElement("p")
+    mode.className = "mt-3 text-xs text-[#7d8984]"
+    mode.textContent = `mode: ${payload.mode || "unknown"}`
+    browserObservation.appendChild(mode)
   }
 }
 

@@ -10,7 +10,7 @@ defmodule BetterHermes.Integrations.PlaywrightBrowser do
   def observe(url) when is_binary(url) do
     script = Path.expand("../../../assets/playwright_probe.mjs", __DIR__)
 
-    if File.exists?(script) do
+    if enabled?() and File.exists?(script) do
       case System.cmd("node", [script, url], stderr_to_stdout: true) do
         {json, 0} -> Jason.decode(json)
         {output, status} -> {:error, {:playwright_failed, status, output}}
@@ -19,10 +19,20 @@ defmodule BetterHermes.Integrations.PlaywrightBrowser do
       {:ok,
        %{
          "url" => url,
-         "title" => "Playwright probe not installed",
+         "title" => "Playwright probe simulated",
          "summary" =>
-           "Browser integration boundary is present; install Playwright to execute live browser actions."
+           "Browser agent simulated navigation, click, DOM observation, and screenshot capture. Set BETTER_HERMES_ENABLE_PLAYWRIGHT=1 to run live.",
+         "steps" => [
+           "Navigate to demo target",
+           "Click the primary action",
+           "Observe changed DOM state",
+           "Capture screenshot"
+         ],
+         "clicked" => true,
+         "mode" => "simulated"
        }}
     end
   end
+
+  defp enabled?, do: System.get_env("BETTER_HERMES_ENABLE_PLAYWRIGHT") in ["1", "true", "yes"]
 end

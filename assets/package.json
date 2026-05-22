@@ -1,6 +1,7 @@
 {
   "private": true,
   "dependencies": {
+    "playwright-core": "^1.60.0",
     "three": "^0.165.0"
   }
 }
